@@ -284,25 +284,28 @@
 
             // If a cookie with data exists, populate table with cookie data
             function readCookie() {
-                data = JSON.parse(decodeURIComponent(document.cookie).substring(5));
-                eraseTable(1);
-                data.forEach(it => {
-                    newRow = table.insertRow(numOfRows - 1);
-                    numOfRows++;
-                    itemCell = newRow.insertCell(0);
-                    itemCell.innerHTML = it.item;
-                    inCell = newRow.insertCell(1);
-                    inCell.innerHTML = '<input type="number" value="'+it.in+'" class="tableentry" onchange="updateTable()">';
-                    outCell = newRow.insertCell(2);
-                    outCell.innerHTML = '<input type="number" value="'+it.out+'" class="tableentry" onchange="updateTable()">';
-                    netCell = newRow.insertCell(3);
-                    netCell.innerHTML = '-';
-                    stockCell = newRow.insertCell(4);
-                    stockCell.innerHTML = '<input type="number" value="'+it.stock+'" class="tableentry" onchange="updateTable()">';
-                    buttonCell = newRow.insertCell(5);
-                    buttonCell.innerHTML = '-';
-                })
-                updateTable();
+                dataRaw = decodeURIComponent(document.cookie);
+                if (dataRaw) {
+                    data = JSON.parse(decodeURIComponent(document.cookie).substring(5));
+                    eraseTable(1);
+                    data.forEach(it => {
+                        newRow = table.insertRow(numOfRows - 1);
+                        numOfRows++;
+                        itemCell = newRow.insertCell(0);
+                        itemCell.innerHTML = it.item;
+                        inCell = newRow.insertCell(1);
+                        inCell.innerHTML = '<input type="number" value="'+it.in+'" class="tableentry" onchange="updateTable()">';
+                        outCell = newRow.insertCell(2);
+                        outCell.innerHTML = '<input type="number" value="'+it.out+'" class="tableentry" onchange="updateTable()">';
+                        netCell = newRow.insertCell(3);
+                        netCell.innerHTML = '-';
+                        stockCell = newRow.insertCell(4);
+                        stockCell.innerHTML = '<input type="number" value="'+it.stock+'" class="tableentry" onchange="updateTable()">';
+                        buttonCell = newRow.insertCell(5);
+                        buttonCell.innerHTML = '-';
+                    })
+                    updateTable();
+                }
             }
         </script>
     </body>
