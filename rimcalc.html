@@ -99,9 +99,33 @@
         </table>
         <input type="button" value="Delete All" onclick="eraseTable()" class="deleteAll">
 
+        <label for="fileDownload">Export to file:</label>
+        <input type="button" id="fileDownload" value="Download" onclick="downloadFile()"><br>
+        <label for="fileUpload">Import from file:</label>
+        <input type="file" id="fileUpload">
+
         <script>
+            // Common use variables
             table = document.getElementById("data");
             numOfRows = table.rows.length;
+
+            // Event listener for file upload
+            upload = document.getElementById("fileUpload");
+            upload.addEventListener("change", function (event){
+                file = event.target.files[0];
+                if (file) {
+                    reader = new FileReader();
+                    reader.onload = function (e) {
+                        jsonData = JSON.parse(e.target.result);
+                        uploadFile(jsonData);
+                    };
+                    reader.readAsText(file);
+                }
+            });
+
+            readCookie();
+            
+            // Update Stocks (via week forward or back)
             function output(state) {
                 for (i = 1; i < numOfRows - 1; i++) {
                     input = Number(table.rows.item(i).cells.item(1).children[0].value);
@@ -115,6 +139,8 @@
                     }
                 }
             }
+
+            // Add input row of table to permanent table data
             function addItem() {
                 newRow = table.insertRow(numOfRows)
                 
@@ -135,11 +161,11 @@
                 table.rows.item(prev).cells.item(0).innerHTML = table.rows.item(prev).cells.item(0).children[0].value;
                 table.rows.item(prev).cells.item(5).innerHTML = '<button onclick="deleteItem('+ prev +')" class="editButton">Delete</button>';
 
-
-
                 numOfRows = table.rows.length;
                 updateTable();
             }
+
+            // Remove row from permanent table data
             function deleteItem(row) {
                 if (confirm("Are you sure you want to delete this row?")) {
                     table.deleteRow(row);
@@ -147,6 +173,8 @@
                     updateTable();
                 }
             }
+
+            // Update values and attributes of table, usually upon a change in data (such as Net and coloring)
             function updateTable() {
                 numOfRows = table.rows.length;
                 for (i = 1; i < numOfRows - 1; i++) {
@@ -156,7 +184,10 @@
                     table.rows.item(i).cells.item(5).innerHTML = '<button onclick="deleteItem('+ i +')" class="editButton">Delete</button>';
                 }
                 colorRows();
+                setCookie();
             }
+
+            // Apply alternate row coloring to table
             function colorRows() {
                 table.rows.item(0).style.backgroundColor = "rgb(190,190,190)";
                 for (i = 1; i < numOfRows; i++) {
@@ -167,13 +198,111 @@
                     }
                 }
             }
-            function eraseTable() {
-                if (confirm("Are you sure you want to delete the entire table?")) {
+
+            // Delete all data from table
+            function eraseTable(skip) {
+                if (skip || confirm("Are you sure you want to delete the entire table? Unsaved data will be permanently lost.")) {
                     for (i = numOfRows - 2; i > 0; i--) {
                         table.deleteRow(i);
                     }
                     updateTable();
                 }
+            }
+
+            /*
+            Format for JSON export:
+            [{
+                "item": "Meat",
+                "in": "100",
+                "out": "50",
+                "stock": "350"
+            }]
+            */
+
+            // Return a JSON string of table data
+            function jsonifyTable() {
+                out = '[';
+                for (i = 1; i < numOfRows - 1; i++) {
+                    it = table.rows.item(i);
+                    outItem = it.cells.item(0).innerHTML;
+                    outIn = String(it.cells.item(1).children[0].value);
+                    outOut = String(it.cells.item(2).children[0].value);
+                    outStock = String(it.cells.item(4).children[0].value);
+                    out += '{"item":"'+outItem+'","in":"'+outIn+'","out":"'+outOut+'","stock":"'+outStock+'"}';
+                    if (i < numOfRows - 2) out += ',';
+                }
+                out += "]";
+                return out;
+            }
+
+            // Download a JSON file of the table
+            function downloadFile() {
+                dlBlob = new Blob([jsonifyTable()], {type: "application/octet-stream"});
+                dlURL = URL.createObjectURL(dlBlob);
+                dlLink = document.createElement("a");
+                dlLink.href = dlURL;
+                dlLink.download = "rimcalcExport.json";
+
+                document.body.appendChild(dlLink);
+                dlLink.click();
+                document.body.removeChild(dlLink);
+
+                URL.revokeObjectURL(dlURL);
+            }
+
+            // Read JSON data from external source, populate table with the data
+            function uploadFile(data) {
+                if (confirm("Are you sure you want to load from file? All unsaved data will be lost.")) {
+                    eraseTable(1);
+                    data.forEach(it => {
+                        newRow = table.insertRow(numOfRows - 1);
+                        numOfRows++;
+                        itemCell = newRow.insertCell(0);
+                        itemCell.innerHTML = it.item;
+                        inCell = newRow.insertCell(1);
+                        inCell.innerHTML = '<input type="number" value="'+it.in+'" class="tableentry" onchange="updateTable()">';
+                        outCell = newRow.insertCell(2);
+                        outCell.innerHTML = '<input type="number" value="'+it.out+'" class="tableentry" onchange="updateTable()">';
+                        netCell = newRow.insertCell(3);
+                        netCell.innerHTML = '-';
+                        stockCell = newRow.insertCell(4);
+                        stockCell.innerHTML = '<input type="number" value="'+it.stock+'" class="tableentry" onchange="updateTable()">';
+                        buttonCell = newRow.insertCell(5);
+                        buttonCell.innerHTML = '-';
+                    })
+                    updateTable();
+                }
+            }
+
+            // Set or update the user cookie to store table data
+            function setCookie() {
+                destruct = new Date();
+                destruct.setTime(destruct.getTime() + (365*24*60*60*1000));
+                expiry = destruct.toUTCString();
+                document.cookie = "data=" + jsonifyTable() + ";" + expiry + ";path=/;SameSite=None;Secure";
+            }
+
+            // If a cookie with data exists, populate table with cookie data
+            function readCookie() {
+                data = JSON.parse(decodeURIComponent(document.cookie).substring(5));
+                eraseTable(1);
+                data.forEach(it => {
+                    newRow = table.insertRow(numOfRows - 1);
+                    numOfRows++;
+                    itemCell = newRow.insertCell(0);
+                    itemCell.innerHTML = it.item;
+                    inCell = newRow.insertCell(1);
+                    inCell.innerHTML = '<input type="number" value="'+it.in+'" class="tableentry" onchange="updateTable()">';
+                    outCell = newRow.insertCell(2);
+                    outCell.innerHTML = '<input type="number" value="'+it.out+'" class="tableentry" onchange="updateTable()">';
+                    netCell = newRow.insertCell(3);
+                    netCell.innerHTML = '-';
+                    stockCell = newRow.insertCell(4);
+                    stockCell.innerHTML = '<input type="number" value="'+it.stock+'" class="tableentry" onchange="updateTable()">';
+                    buttonCell = newRow.insertCell(5);
+                    buttonCell.innerHTML = '-';
+                })
+                updateTable();
             }
         </script>
     </body>
